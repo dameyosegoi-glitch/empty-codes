@@ -20,11 +20,6 @@ export default function AdminPage() {
     return false;
   });
 
-  useEffect(() => {
-    if (authed && password) {
-      fetchData(tab);
-    }
-  }, [authed]);
   const [scrapers, setScrapers] = useState<any[]>([]);
   const [counts, setCounts] = useState<any[]>([]);
   const [tab, setTab] = useState("pending");
@@ -71,6 +66,24 @@ export default function AdminPage() {
     fetchData(tab);
   };
 
+  const [chatConfig, setChatConfig] = useState<{url: string, apiKey: string, model: string} | null>(null);
+
+  const fetchChatConfig = async () => {
+    try {
+      const r = await fetch("/api/admin/chat-config", {
+        headers: { Authorization: `Bearer ${password}` },
+      });
+      if (r.ok) setChatConfig(await r.json());
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (authed && password) {
+      fetchData(tab);
+      fetchChatConfig();
+    }
+  }, [authed]);
+
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const prompt = chatInput.trim();
@@ -79,24 +92,60 @@ export default function AdminPage() {
     setChatLoading(true);
 
     try {
-      const res = await fetch("/api/admin/chat", {
+      if (!chatConfig) throw new Error("AI config not loaded. Refresh page.");
+
+      // Step 1: Call 9routers directly from browser (no Vercel timeout)
+      const llmRes = await fetch(chatConfig.url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${password}` },
-        body: JSON.stringify({ prompt }),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${chatConfig.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: chatConfig.model,
+          stream: false,
+          messages: [
+            { role: "system", content: "Scraper generator. Output ONLY JSON: {\"title\":\"...\",\"description\":\"...\",\"code\":\"...\",\"language\":\"python\",\"category\":\"social-media|e-commerce|ai|search|crypto|news|video|image|api|other\"}. Keep code under 80 lines, use modern patterns." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 4096,
+        }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const llmData = await llmRes.json();
+      const msg = llmData.choices?.[0]?.message || {};
+      const raw = msg.content || msg.reasoning_content || "";
+
+      // Step 2: Parse JSON from response
+      let json = raw;
+      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) json = jsonMatch[1].trim();
+      const scraper = JSON.parse(json);
+
+      if (!scraper.title || !scraper.code) {
+        throw new Error("AI generated invalid scraper");
+      }
+
+      // Step 3: Submit to DB via admin API
+      const submitRes = await fetch("/api/admin/chat", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${password}` },
+        body: JSON.stringify(scraper),
+      });
+      const submitData = await submitRes.json();
+
+      if (submitData.success) {
         setChatMessages(prev => [...prev, {
           role: "ai",
-          content: `✅ **${data.title}** submitted! ID: #${data.id}\n\nCheck the pending tab to approve.`,
-          id: data.id,
-          title: data.title,
+          content: `✅ **${scraper.title}** submitted! ID: #${submitData.id}\n\nCheck the pending tab to approve.`,
+          id: submitData.id,
+          title: scraper.title,
         }]);
       } else {
-        setChatMessages(prev => [...prev, { role: "ai", content: `❌ Error: ${data.error || "Unknown"}` }]);
+        throw new Error(submitData.error || "Submit failed");
       }
     } catch (e: any) {
-      setChatMessages(prev => [...prev, { role: "ai", content: `❌ Network error: ${e.message}` }]);
+      setChatMessages(prev => [...prev, { role: "ai", content: `❌ Error: ${e.message}` }]);
     } finally {
       setChatLoading(false);
     }

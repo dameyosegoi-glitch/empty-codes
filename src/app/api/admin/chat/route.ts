@@ -90,3 +90,30 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 }
+
+// PUT: submit scraper to DB (called from browser after LLM generates code)
+export async function PUT(req: NextRequest) {
+  if (!checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const { title, description, code, language, category } = await req.json();
+    if (!title || !code) return NextResponse.json({ error: "title and code required" }, { status: 400 });
+
+    const id = await execute(
+      "INSERT INTO scrapers (title, author, description, code, language, category, tags, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')",
+      [
+        (title || "").slice(0, 200),
+        "AI Agent",
+        (description || "").slice(0, 1000),
+        (code || "").slice(0, 50000),
+        language || "python",
+        category || "other",
+        "",
+      ]
+    );
+
+    return NextResponse.json({ success: true, id });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });
+  }
+}
