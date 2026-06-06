@@ -38,20 +38,12 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: "system",
-            content: `You are a scraper code generator. Given a description, generate a working web scraper. Output ONLY a JSON object:
-{
-  "title": "short descriptive title",
-  "description": "1-2 sentence description",
-  "code": "the full scraper code (well-commented)",
-  "language": "python|javascript|typescript|php|go|rust|ruby|java|bash",
-  "category": "social-media|e-commerce|ai|search|crypto|news|video|image|api|other"
-}
-Code must be real, runnable, with imports, error handling, and the main function. Use modern async patterns. Keep under 1000 lines.`
+            content: `Scraper generator. Output ONLY JSON: {"title":"...","description":"...","code":"...","language":"python","category":"social-media|e-commerce|ai|search|crypto|news|video|image|api|other"}. Keep code under 80 lines, use modern patterns.`
           },
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 1024,
+        max_tokens: 512,
       }),
     });
 
