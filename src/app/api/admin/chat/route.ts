@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         "Authorization": `Bearer ${NINEROUTER_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "Kiro",
+        model: "FM",
         stream: false,
         messages: [
           {
