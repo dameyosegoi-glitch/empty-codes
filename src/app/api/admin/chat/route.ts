@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from "next/server";
+import { execute } from "@/lib/db";
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "emptycodes-admin-2026";
+const NINEROUTER_URL = (process.env.NINEROUTER_URL || "https://rjpm2uc.abc-tunnel.us") + "/v1/chat/completions";
+
+function checkAuth(req: NextRequest): boolean {
+  const auth = req.headers.get("authorization");
+  return (auth?.startsWith("Bearer ") && auth.slice(7) === ADMIN_PASSWORD) || false;
+}
+
+export async function POST(req: NextRequest) {
+  if (!checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { prompt } = await req.json();
+  if (!prompt || typeof prompt !== "string") {
+    return NextResponse.json({ error: "Prompt required" }, { status: 400 });
+  }
+
+  try {
+    // Call MI via 9routers to generate scraper
+    const llmRes = await fetch(NINEROUTER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "MI",
+        messages: [
+          {
+            role: "system",
+            content: `You are a scraper code generator. Given a description, generate a working web scraper. Output ONLY a JSON object:
+{
+  "title": "short descriptive title",
+  "description": "1-2 sentence description",
+  "code": "the full scraper code (well-commented)",
+  "language": "python|javascript|typescript|php|go|rust|ruby|java|bash",
+  "category": "social-media|e-commerce|ai|search|crypto|news|video|image|api|other"
+}
+Code must be real, runnable, with imports, error handling, and the main function. Use modern async patterns. Keep under 1000 lines.`
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 4096,
+      }),
+    });
+
+    const llmData = await llmRes.json();
+    const raw = llmData.choices?.[0]?.message?.content || "";
+    
+    // Parse JSON from response (handle markdown code blocks)
+    let json = raw;
+    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) json = jsonMatch[1].trim();
+    
+    const scraper = JSON.parse(json);
+    
+    if (!scraper.title || !scraper.code) {
+      return NextResponse.json({ error: "AI generated invalid scraper", raw }, { status: 500 });
+    }
+
+    // Submit to database
+    const id = await execute(
+      "INSERT INTO scrapers (title, author, description, code, language, category, tags, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')",
+      [
+        scraper.title.slice(0, 200),
+        "AI Agent",
+        (scraper.description || "").slice(0, 1000),
+        scraper.code.slice(0, 50000),
+        scraper.language || "python",
+        scraper.category || "other",
+        "",
+      ]
+    );
+
+    return NextResponse.json({
+      success: true,
+      id,
+      title: scraper.title,
+      message: `"${scraper.title}" submitted! Pending review.`,
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });
+  }
+}
