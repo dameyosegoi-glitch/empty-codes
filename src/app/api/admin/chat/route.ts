@@ -51,7 +51,8 @@ Code must be real, runnable, with imports, error handling, and the main function
     });
 
     const llmData = await llmRes.json();
-    const raw = llmData.choices?.[0]?.message?.content || "";
+    const msg = llmData.choices?.[0]?.message || {};
+    const raw = msg.content || msg.reasoning_content || "";
     
     // Parse JSON from response (handle markdown code blocks)
     let json = raw;
