@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryAll, execute } from "@/lib/db";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "emptycodes-admin-2026";
+const ADMIN_PASSWORD=proces...
+if (!ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD env not set");
 
 function checkAuth(req: NextRequest): boolean {
   const auth = req.headers.get("authorization");

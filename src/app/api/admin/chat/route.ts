@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "emptycodes-admin-2026";
-const NINEROUTER_URL = (process.env.NINEROUTER_URL || "https://jackowi.empty.codes") + "/v1/chat/completions";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD env not set");
+const NINEROUTER_BASE = process.env.NINEROUTER_URL;
+if (!NINEROUTER_BASE) throw new Error("NINEROUTER_URL env not set");
+const NINEROUTER_URL = NINEROUTER_BASE + "/v1/chat/completions";
 const NINEROUTER_API_KEY = process.env.NINEROUTER_API_KEY || "";
 if (!NINEROUTER_API_KEY) console.warn("NINEROUTER_API_KEY not set — AI chat will fail");
 
@@ -48,7 +51,7 @@ Code must be real, runnable, with imports, error handling, and the main function
           { role: "user", content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 4096,
+        max_tokens: 1024,
       }),
     });
 
