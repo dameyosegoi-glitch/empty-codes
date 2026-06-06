@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "MI",
+        stream: false,
         messages: [
           {
             role: "system",
