@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "emptycodes-admin-2026";
-const NINEROUTER_URL = (process.env.NINEROUTER_URL || "https://rjpm2uc.abc-tunnel.us") + "/v1/chat/completions";
+const NINEROUTER_URL = (process.env.NINEROUTER_URL || "https://jackowi.empty.codes") + "/v1/chat/completions";
 
 function checkAuth(req: NextRequest): boolean {
   const auth = req.headers.get("authorization");
