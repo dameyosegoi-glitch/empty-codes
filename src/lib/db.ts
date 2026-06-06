@@ -2,7 +2,9 @@ import initSqlJs, { Database as SqlJsDatabase } from "sql.js";
 import fs from "fs";
 import path from "path";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = process.env.VERCEL 
+  ? path.join("/tmp", "empty-codes-data")
+  : path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "empty-codes.db");
 
 let dbPromise: Promise<SqlJsDatabase> | null = null;
@@ -11,7 +13,9 @@ async function getDbInstance(): Promise<SqlJsDatabase> {
   if (dbPromise) return dbPromise;
 
   dbPromise = (async () => {
-    const SQL = await initSqlJs();
+    const SQL = await initSqlJs({
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`
+    });
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
     let db: SqlJsDatabase;
