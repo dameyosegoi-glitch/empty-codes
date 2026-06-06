@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { categoryLabels, languageLabels } from "@/lib/labels";
+import { categoryLabels, languageLabels } from "@/lib/db";
 import { Shield, Check, X, Trash2, RefreshCw, Bot, Send, Loader2 } from "lucide-react";
 
 interface ChatMessage {
