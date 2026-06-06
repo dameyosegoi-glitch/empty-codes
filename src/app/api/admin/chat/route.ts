@@ -19,8 +19,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Prompt required" }, { status: 400 });
   }
 
+  let raw = "";
+
   try {
-    // Call MI via 9routers to generate scraper
+    // Call FM via 9routers to generate scraper
     const llmRes = await fetch(NINEROUTER_URL, {
       method: "POST",
       headers: {
@@ -52,7 +54,7 @@ Code must be real, runnable, with imports, error handling, and the main function
 
     const llmData = await llmRes.json();
     const msg = llmData.choices?.[0]?.message || {};
-    const raw = msg.content || msg.reasoning_content || "";
+    raw = msg.content || msg.reasoning_content || "";
     
     // Parse JSON from response (handle markdown code blocks)
     let json = raw;
@@ -62,7 +64,7 @@ Code must be real, runnable, with imports, error handling, and the main function
     const scraper = JSON.parse(json);
     
     if (!scraper.title || !scraper.code) {
-      return NextResponse.json({ error: "AI generated invalid scraper", raw }, { status: 500 });
+      return NextResponse.json({ error: "AI generated invalid scraper", raw: raw.slice(0, 500), json: json.slice(0, 500) }, { status: 500 });
     }
 
     // Submit to database
@@ -86,6 +88,10 @@ Code must be real, runnable, with imports, error handling, and the main function
       message: `"${scraper.title}" submitted! Pending review.`,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Failed" }, { status: 500 });
+    return NextResponse.json({ 
+      error: e.message || "Failed",
+      detail: String(e).slice(0, 300),
+      rawPreview: raw.slice(0, 500)
+    }, { status: 500 });
   }
 }
