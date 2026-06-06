@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { categoryLabels, languageLabels } from "@/lib/db";
 import { Shield, Check, X, Trash2, RefreshCw, Bot, Send, Loader2 } from "lucide-react";
 
@@ -11,8 +11,20 @@ interface ChatMessage {
 }
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authed, setAuthed] = useState(false);
+  const [password, setPassword] = useState(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("admin_pass") || "";
+    return "";
+  });
+  const [authed, setAuthed] = useState(() => {
+    if (typeof window !== "undefined") return !!localStorage.getItem("admin_pass");
+    return false;
+  });
+
+  useEffect(() => {
+    if (authed && password) {
+      fetchData(tab);
+    }
+  }, [authed]);
   const [scrapers, setScrapers] = useState<any[]>([]);
   const [counts, setCounts] = useState<any[]>([]);
   const [tab, setTab] = useState("pending");
@@ -26,8 +38,15 @@ export default function AdminPage() {
   const [chatLoading, setChatLoading] = useState(false);
 
   const login = () => {
+    if (!password.trim()) return;
+    localStorage.setItem("admin_pass", password);
     setAuthed(true);
-    fetchData(tab);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("admin_pass");
+    setPassword("");
+    setAuthed(false);
   };
 
   const fetchData = (status: string) => {
@@ -102,6 +121,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-light">Admin Dashboard</h1>
           <button onClick={() => fetchData(tab)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900"><RefreshCw className="w-5 h-5" /></button>
+          <button onClick={logout} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100">Logout</button>
         </div>
 
         {/* Tabs */}
