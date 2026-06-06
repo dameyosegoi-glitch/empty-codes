@@ -151,16 +151,43 @@ export async function execute(sql: string, params: any[] = []): Promise<number> 
 
   if (lower.startsWith("insert")) {
     // INSERT INTO scrapers (...) VALUES (...)
-    const colsMatch = sql.match(/\((.+?)\)\s*VALUES/i);
-    if (!colsMatch) throw new Error("Invalid INSERT: no columns");
+    const colsMatch = sql.match(/\((.+?)\)\s*VALUES\s*\((.+?)\)\s*$/is);
+    if (!colsMatch) throw new Error("Invalid INSERT: no columns/values");
     
     const cols = colsMatch[1].split(",").map((c) => c.trim());
+    const valsRaw = colsMatch[2];
+    
+    // Parse VALUES: split by comma, handling quoted strings
+    const vals: string[] = [];
+    let current = "";
+    let inQuote = false;
+    for (const ch of valsRaw) {
+      if (ch === "'" || ch === '"') {
+        // toggle quote if not escaped
+        inQuote = !inQuote;
+        current += ch;
+      } else if (ch === "," && !inQuote) {
+        vals.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    vals.push(current.trim());
+    
     const id = nextId++;
     const ts = now();
+    let paramIdx = 0;
     
     const record: any = { id, created_at: ts, updated_at: ts };
     for (let i = 0; i < cols.length; i++) {
-      record[cols[i]] = params[i] ?? "";
+      const v = vals[i] ?? "?";
+      if (v === "?") {
+        record[cols[i]] = params[paramIdx++] ?? "";
+      } else {
+        // Hardcoded value like 'pending' — strip quotes
+        record[cols[i]] = v.replace(/^['"]|['"]$/g, "");
+      }
     }
     
     store!.push(record as Scraper);
